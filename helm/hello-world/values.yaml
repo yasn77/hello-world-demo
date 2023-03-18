@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: 
+  repository: ghcr.io/yasn77/hello-world-demo
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: sha-328bf2e
 
 imagePullSecrets: []
 nameOverride: ""

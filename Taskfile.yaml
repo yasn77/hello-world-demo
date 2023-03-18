@@ -1,0 +1,75 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  GREETING: Hello, World!
+  IMAGE: 127.0.0.1/hello-world-demo
+  IMAGE_TAG: local
+  KUBECONFIG: '{{.TASKFILE_DIR}}/.kubeconfig'
+
+tasks:
+  pip-install:
+    vars:
+      REQUIREMENTS: '{{default "dev-requirements.txt" .REQUIREMENTS}}'
+    cmds:
+      - pip install -q --require-virtualenv --disable-pip-version-check -r dev-requirements.txt -r "{{.REQUIREMENTS}}"
+    silent: true
+
+  python-test:
+    desc: Lint and test Python code
+    deps: [pip-install]
+    cmds:
+      - pycodestyle src/
+      - pytest
+
+  build-image:
+    desc: Build Container image
+    deps: [minikube-launch]
+    cmds:
+      - minikube image build -t {{.IMAGE}}:{{.IMAGE_TAG}} {{.TASKFILE_DIR}}
+
+  minikube-launch:
+    desc: Launch Minikube cluster with Docker driver
+    cmds:
+      - minikube start
+      - minikube addons enable ingress
+    status:
+      - minikube status
+
+  minikube-helloworld-deploy:
+    desc: Deploy Hello World App using minikube
+    deps: [build-image]
+    cmds:
+      - minikube kubectl -- create deployment hello-world --image={{.IMAGE}}:{{.IMAGE_TAG}}
+      - minikube kubectl -- expose deployment hello-world --type=NodePort --port=8000
+      - minikube service hello-world --url
+
+  helm-install:
+    desc: Deploy Hello World app using Helm
+    deps: [build-image]
+    env:
+      KUBECONFIG: '{{.KUBECONFIG}}'
+    cmds:
+      - minikube update-context
+      - |
+        helm upgrade --install \
+          -n hello-world \
+          --create-namespace \
+          --set image.repository={{.IMAGE}} \
+          --set image.tag={{.IMAGE_TAG}} \
+          --set service.type=NodePort \
+          --set service.port=8000 \
+          hello-world \
+          helm/hello-world/
+      - |
+        NODE_PORT=$(kubectl get --namespace hello-world -o jsonpath="{.spec.ports[0].nodePort}" services hello-world)
+        NODE_IP=$(kubectl get nodes --namespace hello-world -o jsonpath="{.items[0].status.addresses[0].address}")
+        echo "Site is available : "
+        echo http://$NODE_IP:$NODE_PORT
+
+  default:
+    cmds:
+      - task: minikube-launch
+      - task: helm-install
+    silent: true
