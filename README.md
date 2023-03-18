@@ -1,1 +1,169 @@
 # hello-world-demo
+
+This repository contains a simple Flask App that displays 'Hello, World!' and can be deployed in Minikube.
+
+## Pre-Requisite / Dependencies
+
+You will need the following to launch the App:
+
+  - Python 3 (and `pip`)
+  - [Minikube](https://minikube.sigs.k8s.io/docs/) 
+
+### Optional
+
+The following is a list of tools that are not required, but helpful to have:
+
+  - [Helm](https://helm.sh/) - Used to deploy in to Minikube using the included Helm Chart
+  - [Taskfile](https://taskfile.dev/) - Run tasks in the included `Taskfile.yaml`
+
+---
+## Get started
+
+  There are two ways to deploy the `hello-world` app in to Minikube, you can deploy manually or you can using `Taskfile`.
+
+  Both ways follow the same steps, however using `Taskfile`automates the process.
+
+### Manually
+1. Ensure Minikube cluster is up and running: 
+
+    ```shell
+    minikube start
+    ```
+
+2. Build container image and ensure that it's loaded in to Minikube cluster: 
+
+    ```shell
+    minikube image build -t 127.0.0.1/hello-world-demo:local .
+    ```
+3. Deploy in to Minikube (_Note:_ this will deploy in to the `default` namespace):
+
+    ```shell
+    minikube kubectl -- create deployment hello-world --image=127.0.0.1/hello-world-demo:local
+    minikube kubectl -- expose deployment hello-world --type=NodePort --port=8000
+    minikube service hello-world --url
+    ```
+    You will see URL displayed, browsing to that link should display the App.
+
+### Manually Using Helm
+
+1. To be safe, set `KUBECONFIG` path:
+
+    ```shell
+    export KUBECONFIG=${PWD}/.kubeconfig
+    ```
+2. Ensure Minikube cluster is up and running:
+
+    ```shell
+    minikube start
+    ```
+
+3. Build container image and ensure that it's loaded in to Minikube cluster: 
+
+    ```shell
+    minikube image build -t 127.0.0.1/hello-world-demo:local .
+    ```
+4. Deploy using Helm:
+
+    ```shell
+    helm upgrade --install \
+      -n hello-world \
+      --create-namespace \
+      --set image.repository=127.0.0.1/hello-world-demo\
+      --set image.tag=local \
+      --set service.type=NodePort \
+      --set service.port=8000 \
+      hello-world \
+      helm/hello-world/
+    
+    NODE_PORT=$(kubectl get --namespace hello-world -o jsonpath="{.spec.ports[0].nodePort}" services hello-world)
+    NODE_IP=$(kubectl get nodes --namespace hello-world -o jsonpath="{.items[0].status.addresses[0].address}")
+    echo "Site is available : "
+    echo http://$NODE_IP:$NODE_PORT
+    ```
+    You will see URL displayed, browsing to that link should display the App.
+
+### Using Taskfile
+
+Simply run the either of the following:
+
+```shell
+task helm-install # To deploy using Helm
+```
+Or
+```shell
+task minikube-helloworld-deploy # To deploy without using Helm
+```
+
+The default task will run `helm-install`, so if you have `helm` installed, you can also just run `task`
+
+A list of tasks can be shown by running `task -l`:
+
+```shell
+$ task -l
+task: Available tasks for this project:
+* build-image:                      Build Container image
+* helm-install:                     Deploy Hello World app using Helm
+* minikube-helloworld-deploy:       Deploy Hello World App using minikube
+* minikube-launch:                  Launch Minikube cluster with Docker driver
+* python-test:                      Lint and test Python code
+```
+---
+## The Flask App
+
+The app is very simple "Hello, World!" example app, but does provide a API endpoint that allows the user to customise the greeting.
+
+### Endpoints
+
+_Note:_ Output can be formatted in json by appending `?output=json` to the request
+
+- `/`     
+    
+    ```shell
+    # Regular Output
+    $ curl http://192.168.49.2:30269/
+    Hello, World!
+    
+    # Output in JSON
+    $ curl http://192.168.49.2:30269/?output=json
+    {"name":"World","output":"Hello, World!"}
+    ```
+
+-  `/hello/<name>`
+    ```shell
+    # Regular Output
+    $ curl http://192.168.49.2:30269/hello/yasser
+    Hello, Yasser!
+
+    # Output in JSON
+    $ curl http://192.168.49.2:30269/hello/yasser?output=json
+    {"name":"Yasser","output":"Hello, Yasser!"}
+    ```
+---
+
+## Development
+
+Work should be undertaken in a virtual env to prevent causing any conflicts with your system installation.
+
+Once you are running in a virtual env, install the needed pip modules:
+
+```shell
+$ pip install -r dev-requirements.txt
+```
+
+The code conforms to PEP8 style guide and you can use `pycodestyle` to check:
+
+```shell
+$ pycodestyle src/
+```
+
+Tests are also provided in `src/tests`, to run tests:
+
+```shell
+$ pytest --no-header src/
+====================================================================================== test session starts ======================================================================================
+collected 4 items
+
+src/tests/test_endpoint.py ....                                                                                                                                                           [100%]
+
+======================================================================================= 4 passed in 0.07s =======================================================================================
+```
