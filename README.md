@@ -24,10 +24,11 @@ The following is a list of tools that are not required, but helpful to have:
   Both ways follow the same steps, however using `Taskfile`automates the process.
 
 ### Manually
-1. Ensure Minikube cluster is up and running: 
+1. Ensure Minikube cluster is up and running with ingress addon enabled: 
 
     ```shell
-    minikube start
+    $ minikube start
+    $ minikube addons enable ingress
     ```
 
 2. Build container image and ensure that it's loaded in to Minikube cluster: 
@@ -35,26 +36,29 @@ The following is a list of tools that are not required, but helpful to have:
     ```shell
     minikube image build -t 127.0.0.1/hello-world-demo:local .
     ```
-3. Deploy in to Minikube (_Note:_ this will deploy in to the `default` namespace):
+3. Deploy in to Minikube:
 
     ```shell
-    minikube kubectl -- create deployment hello-world --image=127.0.0.1/hello-world-demo:local
-    minikube kubectl -- expose deployment hello-world --type=NodePort --port=8000
-    minikube service hello-world --url
+    $ minikube kubectl -- apply -f ./static-deploy.yaml
+    $ minikube service -n ingress-nginx ingress-nginx-controller --url | head -1
     ```
     You will see URL displayed, browsing to that link should display the App.
 
+    _Note: HTTP `Host` must be `static-hello.localdomain` when making the request, or add an entry to `/etc/hosts`_
+
 ### Manually Using Helm
 
-1. To be safe, set `KUBECONFIG` path:
+1. Ensure Minikube cluster is up and running:
 
     ```shell
-    export KUBECONFIG=${PWD}/.kubeconfig
+    $ minikube start
     ```
-2. Ensure Minikube cluster is up and running:
+
+2. To be safe, set `KUBECONFIG` path:
 
     ```shell
-    minikube start
+    $ export KUBECONFIG=${PWD}/.kubeconfig
+    $ minikube update-context
     ```
 
 3. Build container image and ensure that it's loaded in to Minikube cluster: 
@@ -62,25 +66,22 @@ The following is a list of tools that are not required, but helpful to have:
     ```shell
     minikube image build -t 127.0.0.1/hello-world-demo:local .
     ```
+
 4. Deploy using Helm:
 
     ```shell
-    helm upgrade --install \
-      -n hello-world \
-      --create-namespace \
-      --set image.repository=127.0.0.1/hello-world-demo\
-      --set image.tag=local \
-      --set service.type=NodePort \
-      --set service.port=8000 \
-      hello-world \
-      helm/hello-world/
+    $ helm upgrade --install \
+        -n hello-world \
+        --create-namespace \
+        -f helm/hello-world/deploy-values.yaml \
+        hello-world \
+        helm/hello-world/
     
-    NODE_PORT=$(kubectl get --namespace hello-world -o jsonpath="{.spec.ports[0].nodePort}" services hello-world)
-    NODE_IP=$(kubectl get nodes --namespace hello-world -o jsonpath="{.items[0].status.addresses[0].address}")
-    echo "Site is available : "
-    echo http://$NODE_IP:$NODE_PORT
+    $ minikube service -n ingress-nginx ingress-nginx-controller --url | head -1
     ```
     You will see URL displayed, browsing to that link should display the App.
+
+    _Note: HTTP `Host` must be `hello.localdomain` when making the request, or add an entry to `/etc/hosts`_
 
 ### Using Taskfile
 
@@ -120,22 +121,22 @@ _Note:_ Output can be formatted in json by appending `?output=json` to the reque
     
     ```shell
     # Regular Output
-    $ curl http://192.168.49.2:30269/
+    $ curl -H 'Host: static-hello.localdomain' http://127.0.0.1:30269/
     Hello, World!
     
     # Output in JSON
-    $ curl http://192.168.49.2:30269/?output=json
+    $ curl -H 'Host: static-hello.localdomain' http://127.0.0.1:30269/?output=json
     {"name":"World","output":"Hello, World!"}
     ```
 
 -  `/hello/<name>`
     ```shell
     # Regular Output
-    $ curl http://192.168.49.2:30269/hello/yasser
+    $ curl -H 'Host: static-hello.localdomain' http://127.0.0.1:30269/hello/yasser
     Hello, Yasser!
 
     # Output in JSON
-    $ curl http://192.168.49.2:30269/hello/yasser?output=json
+    $ curl -H 'Host: static-hello.localdomain' http://127.0.0.1:30269/hello/yasser?output=json
     {"name":"Yasser","output":"Hello, Yasser!"}
     ```
 ---

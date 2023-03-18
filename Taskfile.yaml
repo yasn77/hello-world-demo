@@ -41,9 +41,12 @@ tasks:
     desc: Deploy Hello World App using minikube
     deps: [build-image]
     cmds:
-      - minikube kubectl -- create deployment hello-world --image={{.IMAGE}}:{{.IMAGE_TAG}}
-      - minikube kubectl -- expose deployment hello-world --type=NodePort --port=8000
-      - minikube service hello-world --url
+      - minikube kubectl -- apply -f '{{.TASKFILE_DIR}}/static-deploy.yaml'
+      - |
+        echo "Site is available : "
+        echo $(minikube service -n ingress-nginx ingress-nginx-controller --url | head -1)
+        echo
+        echo "Note - HTTP 'Host' must be 'static-hello.localdomain' when making the request"
 
   helm-install:
     desc: Deploy Hello World app using Helm
@@ -56,17 +59,14 @@ tasks:
         helm upgrade --install \
           -n hello-world \
           --create-namespace \
-          --set image.repository={{.IMAGE}} \
-          --set image.tag={{.IMAGE_TAG}} \
-          --set service.type=NodePort \
-          --set service.port=8000 \
+          -f helm/hello-world/deploy-values.yaml \
           hello-world \
           helm/hello-world/
       - |
-        NODE_PORT=$(kubectl get --namespace hello-world -o jsonpath="{.spec.ports[0].nodePort}" services hello-world)
-        NODE_IP=$(kubectl get nodes --namespace hello-world -o jsonpath="{.items[0].status.addresses[0].address}")
         echo "Site is available : "
-        echo http://$NODE_IP:$NODE_PORT
+        echo $(minikube service -n ingress-nginx ingress-nginx-controller --url | head -1)
+        echo
+        echo "Note - HTTP 'Host' must be 'hello.localdomain' when making the request"
 
   default:
     cmds:

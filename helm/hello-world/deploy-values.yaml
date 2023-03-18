@@ -1,0 +1,14 @@
+---
+image:
+  repository: 127.0.0.1/hello-world-demo
+  tag: local
+
+replicaCount: 3
+
+ingress:
+  enabled: true
+  hosts:
+    - host: hello.localdomain
+      paths:
+        - path: /
+          pathType: Prefix

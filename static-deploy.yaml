@@ -1,0 +1,108 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    kubernetes.io/metadata.name: static-hello-world
+  name: static-hello-world
+---
+# Source: static-hello-world/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: static-hello-world
+  namespace: static-hello-world
+  labels:
+    app.kubernetes.io/name: static-hello-world
+    app.kubernetes.io/instance: static-hello-world
+    app.kubernetes.io/version: "1.16.0"
+---
+# Source: static-hello-world/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: static-hello-world
+  namespace: static-hello-world
+  labels:
+    app.kubernetes.io/name: static-hello-world
+    app.kubernetes.io/instance: static-hello-world
+    app.kubernetes.io/version: "1.16.0"
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: static-hello-world
+    app.kubernetes.io/instance: static-hello-world
+---
+# Source: static-hello-world/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: static-hello-world
+  namespace: static-hello-world
+  labels:
+    app.kubernetes.io/name: static-hello-world
+    app.kubernetes.io/instance: static-hello-world
+    app.kubernetes.io/version: "1.16.0"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: static-hello-world
+      app.kubernetes.io/instance: static-hello-world
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: static-hello-world
+        app.kubernetes.io/instance: static-hello-world
+    spec:
+      serviceAccountName: static-hello-world
+      securityContext:
+        {}
+      containers:
+        - name: static-hello-world
+          securityContext:
+            {}
+          image: "127.0.0.1/hello-world-demo:local"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+          resources:
+            {}
+---
+# Source: static-hello-world/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: static-hello-world
+  namespace: static-hello-world
+  labels:
+    app.kubernetes.io/name: static-hello-world
+    app.kubernetes.io/instance: static-hello-world
+    app.kubernetes.io/version: "1.16.0"
+spec:
+  rules:
+    - host: "static-hello.localdomain"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: static-hello-world
+                port:
+                  number: 8000
