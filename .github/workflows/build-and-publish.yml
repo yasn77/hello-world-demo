@@ -1,5 +1,6 @@
 name: Create and publish image/chart to Github
 
+
 on:
   push:
     branches: ['master']
@@ -10,7 +11,7 @@ env:
 
 jobs:
   build-push-image:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     permissions:
       contents: write
       packages: write
